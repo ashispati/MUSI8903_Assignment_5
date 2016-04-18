@@ -34,7 +34,7 @@ public:
     Error_t setParam (PpmParameter_t eParam, float fParamValue);
     float getParam (PpmParameter_t eParam) const;
     
-    Error_t process(float **input_buffer, int number_of_frames, float& ppm_value);
+    Error_t process(float **input_buffer, int number_of_frames, float* ppm_value);
     
 protected:
     Ppm ();
@@ -48,7 +48,7 @@ private:
     bool _is_initialized;
     float _sample_rate;
     int _num_channels;
-    float _previous_ppm;
+    float* _previous_ppm;
     float _param_range[numPpmParameters][2];
     float _params[numPpmParameters];
     float convertTimeInSecToValue(float time_in_sec);

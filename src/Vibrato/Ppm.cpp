@@ -55,7 +55,10 @@ Error_t Ppm::initInstance (float sample_rate, int num_channels)
     // set parameters
     _sample_rate = sample_rate;
     _num_channels = num_channels;
-    _previous_ppm = 0;
+    _previous_ppm = new float [_num_channels];
+    for (int i = 0; i < _num_channels; i++) {
+        _previous_ppm[i] = 0;
+    }
     
     // set parameter ranges
     _param_range[AlphaAt][0] = 0;
@@ -107,7 +110,7 @@ float Ppm::getParam( PpmParameter_t eParam ) const
 }
 
 
-Error_t Ppm::process (float **input_buffer, int number_of_frames, float& ppm_value_max) {
+Error_t Ppm::process (float **input_buffer, int number_of_frames, float *ppm_value_max) {
     if (!input_buffer || number_of_frames < 0)
         return kFunctionInvalidArgsError;
     
@@ -115,39 +118,40 @@ Error_t Ppm::process (float **input_buffer, int number_of_frames, float& ppm_val
         return kNotInitializedError;
     }
     
+    float current_sample = 0;
+    
     for (int i = 0; i < number_of_frames; i++)
     {
-        float current_sample = 0;
-        float ppm_value = 0;
         for (int c = 0; c < _num_channels; c++)
         {
-            current_sample += input_buffer[c][i];
-        }
-        current_sample = fabsf(current_sample);
-        
-        //check for state
-        if (_previous_ppm > current_sample) {
+            float ppm_value = 0;
+            current_sample = fabsf(input_buffer[c][i]);
+            
+            // check for state
             //release state
-            ppm_value = (1 - _params[AlphaRt]) * _previous_ppm;
+            if (_previous_ppm[c] > current_sample) {
+                ppm_value = (1 - _params[AlphaRt]) * _previous_ppm[c];
+            }
+            // attack state
+            else {
+                ppm_value = _params[AlphaAt] * current_sample + (1 - _params[AlphaAt]) * _previous_ppm[c];
+            }
+            // update max ppm value
+            if (ppm_value > _previous_ppm[c]) {
+                ppm_value_max[c] = ppm_value;
+            }
+            _previous_ppm[c] = ppm_value;
+            
+            // convert to dB scale
+            if (ppm_value_max[c] > 0) {
+                ppm_value_max[c] = 20*log10f(ppm_value_max[c]);
+            }
+            else {
+                ppm_value_max[c] = LOWER_LIMIT_IN_DB;
+            }
         }
-        else {
-            //attack state
-            ppm_value = _params[AlphaAt] * current_sample + (1 - _params[AlphaAt]) * _previous_ppm;
-        }
-        // update max ppm value
-        if (ppm_value > _previous_ppm) {
-            ppm_value_max = ppm_value;
-        }
-        _previous_ppm = ppm_value;
         
     }
-    if (ppm_value_max > 0) {
-        ppm_value_max = 20*log10f(ppm_value_max);
-    }
-    else {
-        ppm_value_max = LOWER_LIMIT_IN_DB;
-    }
-    
     return kNoError;
 }
 
