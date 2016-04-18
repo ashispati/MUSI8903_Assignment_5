@@ -9,7 +9,7 @@
 */
 
 #include "Ppm.h"
-#include <math.h>
+#include <cmath>
 #include <iostream>
 
 Ppm::Ppm () :
@@ -141,8 +141,12 @@ Error_t Ppm::process (float **input_buffer, int number_of_frames, float& ppm_val
         _previous_ppm = ppm_value;
         
     }
-    
-    ppm_value_max = 20*log10f(ppm_value_max);
+    if (ppm_value_max > 0) {
+        ppm_value_max = 20*log10f(ppm_value_max);
+    }
+    else {
+        ppm_value_max = LOWER_LIMIT_IN_DB;
+    }
     
     return kNoError;
 }
