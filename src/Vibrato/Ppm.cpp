@@ -141,14 +141,6 @@ Error_t Ppm::process (float **input_buffer, int number_of_frames, float *ppm_val
                 ppm_value_max[c] = ppm_value;
             }
             _previous_ppm[c] = ppm_value;
-            
-            // convert to dB scale
-            if (ppm_value_max[c] > 0) {
-                ppm_value_max[c] = 20*log10f(ppm_value_max[c]);
-            }
-            else {
-                ppm_value_max[c] = LOWER_LIMIT_IN_DB;
-            }
         }
         
     }
