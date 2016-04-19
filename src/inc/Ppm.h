@@ -43,7 +43,6 @@ protected:
     
     
 private:
-    const float LOWER_LIMIT_IN_DB = -100.F;
     bool isInParamRange (PpmParameter_t eParam, float time_in_sec);
     bool _is_initialized;
     float _sample_rate;

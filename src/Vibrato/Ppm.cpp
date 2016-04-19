@@ -137,7 +137,7 @@ Error_t Ppm::process (float **input_buffer, int number_of_frames, float *ppm_val
                 ppm_value = _params[AlphaAt] * current_sample + (1 - _params[AlphaAt]) * _previous_ppm[c];
             }
             // update max ppm value
-            if (ppm_value > _previous_ppm[c]) {
+            if (ppm_value >= _previous_ppm[c]) {
                 ppm_value_max[c] = ppm_value;
             }
             _previous_ppm[c] = ppm_value;
