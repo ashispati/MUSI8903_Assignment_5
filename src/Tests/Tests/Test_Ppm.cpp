@@ -20,10 +20,10 @@ SUITE(Ppm)
 			m_pPpm(0),
 			m_ppfInputData(0),
 			m_ppfOutputData(0),
-			m_kiDataLength(35131),
-			m_iBlockLength(171),
+			m_kiDataLength(234930),
+			m_iBlockLength(1024),
 			m_iNumChannels(3),
-			m_fSampleRate(31271)
+			m_fSampleRate(44100)
 		{
 			Ppm::createInstance(m_pPpm);
 			m_pPpm->initInstance(m_fSampleRate, m_iNumChannels);
@@ -91,7 +91,7 @@ SUITE(Ppm)
 
 	};
 
-	/*
+	
 	TEST_FIXTURE(PpmData, DCInput)
 	{
 		for (int c = 0; c < m_iNumChannels; c++)
@@ -102,51 +102,82 @@ SUITE(Ppm)
 		process();
 
 		float at_time = m_pPpm->getParam(Ppm::AlphaAt);
-		int stable_state = ceil(at_time * m_fSampleRate / m_iBlockLength);
+		int steady_state = ceil(at_time * m_fSampleRate / m_iBlockLength);
 		for (int c = 0; c < m_iNumChannels; c++)
 		{
-			m_pfOutputTmp = &m_ppfOutputData[c][stable_state];
-			CHECK_ARRAY_CLOSE(m_ppfInputData[c], m_pfOutputTmp, m_iOutputPoints-stable_state, 1e-4F);
+			m_pfOutputTmp = &m_ppfOutputData[c][steady_state];
+			CHECK_ARRAY_CLOSE(m_ppfInputData[c], m_pfOutputTmp, m_iOutputPoints-steady_state, 1e-4F);
 		}
-	}*/
+	}
 
-	//TEST_FIXTURE(PpmData, SineInput)
-	//{
-	//	// Run PPM through a sine wave generated with a phase of pi/2. Value should be a constant.
-	//	// 
-	//	float amplitude = 2.0F;
-	//	for (int c = 0; c < m_iNumChannels; c++)
-	//	{
-	//		CSynthesis::generateSine(m_ppfInputData[c], 440, m_fSampleRate, m_kiDataLength, amplitude, 0);
-	//	}
+	TEST_FIXTURE(PpmData, SineInput)
+	{
+		// Defunct. Need to fix
+		float amplitude = 2.0F;
+		for (int c = 0; c < m_iNumChannels; c++)
+		{
+			CSynthesis::generateSine(m_ppfInputData[c], 440, m_fSampleRate, m_kiDataLength, amplitude, 0);
+		}
 
-	//	process();
+		process();
 
-	//	for (int c = 0; c < m_iNumChannels; c++)
-	//		for (int i = 0; i < m_iOutputPoints; i++)
-	//			CHECK_EQUAL(m_ppfOutputData, 20 * log10(amplitude));
-	//}
+		for (int c = 0; c < m_iNumChannels; c++)
+			for (int i = 0; i < m_iOutputPoints; i++)
+				CHECK_EQUAL(m_ppfOutputData, 20 * log10(amplitude));
+	}
 
-	//TEST_FIXTURE(PpmData, RampInput)
-	//{
-	//	// Need to compensate for the attack and release. Fix that. Currently basic skeleton is implemented
+	TEST_FIXTURE(PpmData, RampInput)
+	{
+		for (int c = 0; c < m_iNumChannels; c++)
+		{
+			for (int i = 0; i < m_kiDataLength; i++)
+			{
+				m_ppfInputData[c][i] = c + i;
+			}
+		}
 
-	//	m_iBlockLength = 1;
-	//	m_kiDataLength = 5000;
+		process();
 
-	//	for (int c = 0; c < m_iNumChannels; c++)
-	//	{
-	//		for (int i = 0; i < m_kiDataLength; i++)
-	//		{
-	//			m_ppfInputData[c][i] = c + i;
-	//		}
-	//	}
+		float at_time = m_pPpm->getParam(Ppm::AlphaAt);
+		int steady_state = ceil(at_time * m_fSampleRate / m_iBlockLength);
+		for (int c = 0; c < m_iNumChannels; c++)
+		{
+			float input_diff = m_ppfInputData[c][1] - m_ppfInputData[c][0];
+			for (int i = steady_state; i < m_iOutputPoints - 2; i++)
+			{
+				CHECK_CLOSE(input_diff*m_iBlockLength, m_ppfOutputData[c][i + 1] - m_ppfOutputData[c][i], 1e0);
+			}
+		}
+	}
 
-	//	process();
+	TEST_FIXTURE(PpmData, StepInput)
+	{
+		for (int c = 0; c < m_iNumChannels; c++)
+		{
+			for (int i = 0; i < floor(m_kiDataLength/2); i++)
+			{
+				m_ppfInputData[c][i] = 1;
+			}
+			for (int i = ceil(m_kiDataLength / 2); i < m_kiDataLength; i++)
+			{
+				m_ppfInputData[c][i] = 0;
+			}
+		}
 
-	//	for (int c = 0; c < m_iNumChannels; c++)
-	//		CHECK_ARRAY_CLOSE(m_ppfInputData[c], m_ppfOutputData[c], m_kiDataLength, 1e-3);
-	//}
+		process();
+
+		float at_time = m_pPpm->getParam(Ppm::AlphaAt);
+		int steady_state = ceil(at_time * m_fSampleRate / m_iBlockLength);
+		float ratio = exp(-2.2*m_iBlockLength / (m_fSampleRate*m_pPpm->getParam(Ppm::AlphaRt)));
+		for (int c = 0; c < m_iNumChannels; c++)
+		{
+			float input_diff = m_ppfInputData[c][1] - m_ppfInputData[c][0];
+			for (int i = ceil(m_iOutputPoints / 2) + steady_state + 1; i < m_iOutputPoints; i++)
+			{
+				CHECK_CLOSE(ratio, m_ppfOutputData[c][i]/m_ppfOutputData[c][i-1], 1e-3);
+			}
+		}
+	}
 
 	TEST_FIXTURE(PpmData, ZeroInput)
 	{

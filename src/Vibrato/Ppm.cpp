@@ -110,15 +110,18 @@ float Ppm::getParam( PpmParameter_t eParam ) const
 }
 
 
-Error_t Ppm::process (float **input_buffer, int number_of_frames, float *ppm_value_max) {
-    if (!input_buffer || number_of_frames < 0)
-        return kFunctionInvalidArgsError;
-    
-    if (!_is_initialized) {
-        return kNotInitializedError;
-    }
-    
-    float current_sample = 0;
+Error_t Ppm::process(float **input_buffer, int number_of_frames, float *ppm_value_max) {
+	if (!input_buffer || number_of_frames < 0)
+		return kFunctionInvalidArgsError;
+
+	if (!_is_initialized) {
+		return kNotInitializedError;
+	}
+
+	float current_sample = 0;
+
+	for (int c = 0; c < _num_channels; c++)
+		ppm_value_max[c] = _previous_ppm[c];
     
     for (int i = 0; i < number_of_frames; i++)
     {
