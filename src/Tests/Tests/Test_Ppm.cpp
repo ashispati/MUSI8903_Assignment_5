@@ -48,8 +48,6 @@ SUITE(Ppm)
 				delete[] m_ppfOutputData[i];
 				delete[] m_ppfInputData[i];
 			}
-			delete[] m_ppfInputTmp;
-			delete[] m_pfOutputTmp;
 			delete[] m_ppfOutputData;
 			delete[] m_ppfInputData;
 
@@ -109,7 +107,7 @@ SUITE(Ppm)
 			CHECK_ARRAY_CLOSE(m_ppfInputData[c], m_pfOutputTmp, m_iOutputPoints-steady_state, 1e-4F);
 		}
 	}
-
+    /*
 	TEST_FIXTURE(PpmData, SineInput)
 	{
 		// Defunct. Need to fix
@@ -125,6 +123,7 @@ SUITE(Ppm)
 			for (int i = 0; i < m_iOutputPoints; i++)
 				CHECK_EQUAL(m_ppfOutputData, 20 * log10(amplitude));
 	}
+    */
 
 	TEST_FIXTURE(PpmData, RampInput)
 	{
@@ -149,8 +148,20 @@ SUITE(Ppm)
 			}
 		}
 	}
+    
+    TEST_FIXTURE(PpmData, ZeroInput)
+    {
+        for (int c = 0; c < m_iNumChannels; c++)
+            CVector::setZero(m_ppfInputData[c], m_kiDataLength);
+        
+        process();
+        
+        for (int c = 0; c < m_iNumChannels; c++) {
+            CHECK_ARRAY_CLOSE(m_ppfInputData[c], &m_ppfOutputData[c][0], m_iOutputPoints, 1e-3F);
+        }
+    }
 
-	TEST_FIXTURE(PpmData, StepInput)
+	TEST_FIXTURE(PpmData, DecayWithAlphaRT)
 	{
 		for (int c = 0; c < m_iNumChannels; c++)
 		{
@@ -171,24 +182,62 @@ SUITE(Ppm)
 		float ratio = exp(-2.2*m_iBlockLength / (m_fSampleRate*m_pPpm->getParam(Ppm::AlphaRt)));
 		for (int c = 0; c < m_iNumChannels; c++)
 		{
-			float input_diff = m_ppfInputData[c][1] - m_ppfInputData[c][0];
 			for (int i = ceil(m_iOutputPoints / 2) + steady_state + 1; i < m_iOutputPoints; i++)
 			{
 				CHECK_CLOSE(ratio, m_ppfOutputData[c][i]/m_ppfOutputData[c][i-1], 1e-3);
 			}
 		}
 	}
+    
+    TEST_FIXTURE(PpmData, DecayWithZeroDecayTime)
+    {
+        for (int c = 0; c < m_iNumChannels; c++)
+        {
+            for (int i = 0; i < floor(m_kiDataLength/2); i++)
+            {
+                m_ppfInputData[c][i] = 1;
+            }
+            for (int i = ceil(m_kiDataLength / 2); i < m_kiDataLength; i++)
+            {
+                m_ppfInputData[c][i] = 0;
+            }
+        }
+        
+        m_pPpm->setParam(Ppm::AlphaRt, 0);
+        
+        process();
+        
+        float at_time = m_pPpm->getParam(Ppm::AlphaAt);
+        int steady_state = ceil(at_time * m_fSampleRate / m_iBlockLength);
+        for (int c = 0; c < m_iNumChannels; c++) {
+            for (int i = ceil(m_iOutputPoints / 2) + steady_state + 1; i < m_iOutputPoints; i++) {
+                CHECK_CLOSE(0, m_ppfOutputData[c][i], 1e-3F);
+            }
+        }
+    }
+    
+    TEST_FIXTURE(PpmData, AttackWithZeroAttackTime)
+    {
+        for (int c = 0; c < m_iNumChannels; c++)
+        {
+            for (int i = 0; i < m_kiDataLength; i++)
+            {
+                m_ppfInputData[c][i] = c + i;
+            }
+        }
+        
+        m_pPpm->setParam(Ppm::AlphaAt, 0);
+        m_pPpm->setParam(Ppm::AlphaRt, 1.5);
+        
+        process();
+        
+        for (int c = 0; c < m_iNumChannels; c++) {
+            for (int i = 0; i < m_iOutputPoints; i++) {
+                CHECK_CLOSE(m_ppfInputData[c][m_iBlockLength*(i+1)-1], m_ppfOutputData[c][i], 1e-3F);
+            }
+        }
 
-	TEST_FIXTURE(PpmData, ZeroInput)
-	{
-		for (int c = 0; c < m_iNumChannels; c++)
-			CVector::setZero(m_ppfInputData[c], m_kiDataLength);
-
-		process();
-
-		for (int c = 0; c < m_iNumChannels; c++)
-			CHECK_ARRAY_CLOSE(m_ppfInputData[c], &m_ppfOutputData[c][0], m_iOutputPoints, 1e-3F);
-	}
+    }
 
 	TEST_FIXTURE(PpmData, ParamRange)
 	{
